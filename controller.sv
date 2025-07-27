@@ -2,7 +2,7 @@ module controller(
     input logic [6:0] opcode,
     input logic [2:0] funct3,
     input logic [6:0] funct7,
-    input logic clk,
+    input logic rst,
     output logic reg_write_enable,
     output logic mem_write_enable,
     output logic alu_source,
@@ -10,7 +10,7 @@ module controller(
     output logic [1:0] reg_write_source,
     output logic [1:0] bit_half_word_select,
     output logic [2:0] imm_op,
-    output logic [3:0] alu_op,
+    output logic [3:0] alu_op
 );
     // alu_source:
     //   0: from register
@@ -24,14 +24,14 @@ module controller(
     //   10: PC
     // bit_half_word_select (only for memory operations):
     //   00: byte
-    //   01: half-word
+    //   01: half word
     //   10: word
     // imm_op (only for immediate operations):
-    //   000: I-type immediate
-    //   001: S-type immediate
-    //   010: B-type immediate
-    //   011: U-type immediate
-    //   100: J-type immediate
+    //   000: I type immediate
+    //   001: S type immediate
+    //   010: B type immediate
+    //   011: U type immediate
+    //   100: J type immediate
     // alu_op:
     //   0000: ADD
     //   0001: SUB
@@ -44,78 +44,84 @@ module controller(
     //   1000: SLT
     //   1001: SLTU
 
-    typedef enum logic [6:0] {
-        R_TYPE = 7'b0110011,
-        I_TYPE = 7'b0010011,
-        S_TYPE = 7'b0100011,
-        B_TYPE = 7'b1100011,
-        U_TYPE = 7'b0110111,
-        J_TYPE = 7'b1101111,
-    } opcode_type;
+    always_comb begin
+        if (rst) begin
+            reg_write_enable = 0;
+            mem_write_enable = 0;
+            alu_source = 0;
+            pc_source = 0;
+            reg_write_source = 2'b00;
+            bit_half_word_select = 2'b00;
+            imm_op = 3'b000;
+            alu_op = 4'b0000;
+        end else begin
+            reg_write_enable = 0;
+            mem_write_enable = 0; // TODO: are these necessary?
 
-    typedef enum logic [9:0] {
-        ADD  = {7'b0000000, 3'b000},
-        SUB  = {7'b0100000, 3'b000},
-        XOR  = {7'b0000000, 3'b100},
-        OR   = {7'b0000000, 3'b110},
-        AND  = {7'b0000000, 3'b111},
-        SLL  = {7'b0000000, 3'b001},
-        SRL  = {7'b0000000, 3'b101},
-        SRA  = {7'b0100000, 3'b101},
-        SLT  = {7'b0000000, 3'b010},
-        SLTU = {7'b0000000, 3'b011},
-    } r_type_funct;
+            case (opcode)
+                7'b0110011: begin // R type
+                    reg_write_enable = 1;
+                    mem_write_enable = 0;
+                    alu_source = 0;
+                    pc_source = 0;
+                    reg_write_source = 2'b00;
+                    
+                    case ({funct7, funct3})
+                        {7'b0000000, 3'b000}: alu_op = 4'b0000; // ADD
+                        {7'b0100000, 3'b000}: alu_op = 4'b0001; // SUB
+                        {7'b0000000, 3'b100}: alu_op = 4'b0100; // XOR
+                        {7'b0000000, 3'b110}: alu_op = 4'b0011; // OR
+                        {7'b0000000, 3'b111}: alu_op = 4'b0010; // AND
+                        {7'b0000000, 3'b001}: alu_op = 4'b0101; // SLL
+                        {7'b0000000, 3'b101}: alu_op = 4'b0110; // SRL
+                        {7'b0100000, 3'b101}: alu_op = 4'b0111; // SRA
+                        {7'b0000000, 3'b010}: alu_op = 4'b1000; // SLT
+                        {7'b0000000, 3'b011}: alu_op = 4'b1001; // SLTU
+                        default: alu_op = 4'b0000; // TODO: invalid operation
+                    endcase
+                end
+                7'b0010011: begin // I type
+                    reg_write_enable = 1;
+                    mem_write_enable = 0;
+                    alu_source = 1;
+                    pc_source = 0;
+                    reg_write_source = 2'b00;
+                    imm_op = 3'b000;
 
-    always_ff @(posedge clk) begin
-        reg_write_enable <= 0;
-        mem_write_enable <= 0;
-
-        case (opcode)
-            R_TYPE: begin
-                reg_write_enable <= 1;
-                mem_write_enable <= 0;
-                alu_source <= 0;
-                pc_source <= 0;
-                reg_write_source <= 2'b00;
-                
-                case ({funct7, funct3})
-                    ADD: alu_op <= 4'b0000;
-                    SUB: alu_op <= 4'b0001;
-                    XOR: alu_op <= 4'b0100;
-                    OR:  alu_op <= 4'b0011;
-                    AND: alu_op <= 4'b0010;
-                    SLL: alu_op <= 4'b0101;
-                    SRL: alu_op <= 4'b0110;
-                    SRA: alu_op <= 4'b0111;
-                    SLT: alu_op <= 4'b1000;
-                    SLTU: alu_op <= 4'b1001;
-                    default: alu_op <= 4'b0000; // TODO: invalid operation
-                endcase
-            end
-            I_TYPE: begin
-                reg_write_enable <= 1;
-                mem_write_enable <= 0;
-            end
-            S_TYPE: begin
-                reg_write_enable <= 0;
-                mem_write_enable <= 1;
-            end
-            B_TYPE: begin
-                reg_write_enable <= 0;
-                mem_write_enable <= 0; // Branch instructions do not write to registers or memory
-            end
-            U_TYPE: begin
-                reg_write_enable <= 1;
-                mem_write_enable <= 0;
-            end
-            J_TYPE: begin
-                reg_write_enable <= 1;
-                mem_write_enable <= 0;
-            end
-            default: begin
-                reg_write_enable <= 0;
-                mem_write_enable <= 0; // Default case, no operation
-            end
-        endcase
+                    case ({funct7, funct3})
+                        {7'b0000000, 3'b000}: alu_op = 4'b0000; // ADDI
+                        {7'b0000000, 3'b100}: alu_op = 4'b0100; // XORI
+                        {7'b0000000, 3'b110}: alu_op = 4'b0011; // ORI
+                        {7'b0000000, 3'b111}: alu_op = 4'b0010; // ANDI
+                        {7'b0000000, 3'b001}: alu_op = 4'b0101; // SLLI
+                        {7'b0000000, 3'b101}: alu_op = 4'b0110; // SRLI
+                        {7'b0100000, 3'b101}: alu_op = 4'b0111; // SRAI
+                        {7'b0100000, 3'b010}: alu_op = 4'b1000; // SLTI
+                        {7'b0100000, 3'b011}: alu_op = 4'b1001; // SLTIU
+                        default: alu_op = 4'b0000; // TODO: invalid operation
+                    endcase
+                end // TODO: load save I type
+                7'b0100011: begin // S type
+                    reg_write_enable = 0;
+                    mem_write_enable = 1;
+                end
+                7'b1100011: begin // B type
+                    reg_write_enable = 0;
+                    mem_write_enable = 0; // B type instructions do not write to registers or memory
+                end
+                7'b0110111: begin // U type
+                    reg_write_enable = 1;
+                    mem_write_enable = 0;
+                end
+                7'b1101111: begin // J type
+                    reg_write_enable = 1;
+                    mem_write_enable = 0;
+                end
+                default: begin
+                    reg_write_enable = 0;
+                    mem_write_enable = 0;
+                end
+            endcase
+        end
     end
 endmodule
