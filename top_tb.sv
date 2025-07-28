@@ -5,7 +5,7 @@ module rv32i_top_tb();
     logic rst;
     logic [31:0] instruction;
     logic [31:0] mem_data;
-    logic [7:0] pc;
+    logic [31:0] pc;
     logic [31:0] mem_addr;
     logic mem_write_enable;
     logic [31:0] mem_write_data;
@@ -27,8 +27,8 @@ module rv32i_top_tb();
     assign mem_data = mem[mem_addr >> 2];
 
     initial begin
-        $readmemh("i_mem.hex", i_mem);
-        $readmemh("mem.hex", mem);
+        $readmemh("tests/branch/i_mem.hex", i_mem);
+        $readmemh("tests/branch/mem.hex", mem);
     end
 
     initial begin

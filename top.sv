@@ -3,12 +3,12 @@ module rv32i_top (
     input logic rst,
     input logic [31:0] instruction,
     input logic [31:0] mem_data,
-    output logic [7:0] pc,
+    output logic [31:0] pc,
     output logic [31:0] mem_addr, // TODO: will this cause problem in simulation?
     output logic mem_write_enable,
     output logic [31:0] mem_write_data
 );
-    logic [31:0] rs1_data, rs2_data, imm, alu_second_input, alu_result, mem_data_processed, reg_write_data;
+    logic [31:0] rs1_data, rs2_data, imm, alu_second_input, alu_result, mem_data_processed, reg_write_data, pc_write_data;
     logic reg_write_enable, alu_source, pc_source, is_unsigned;
     logic [1:0] reg_write_source, bit_half_word_select;
     logic [2:0] imm_op;
@@ -33,13 +33,13 @@ module rv32i_top (
     assign reg_write_data = (reg_write_source == 2'b00) ? alu_result :
                         (reg_write_source == 2'b01) ? mem_data_processed :
                         (reg_write_source == 2'b10) ? pc + 4 : 32'b0; // TODO: jump logic
+    assign pc_write_data = pc_source ? (pc + (alu_result & imm)) : pc + 4;
 
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
-            pc <= 8'h00;
+            pc <= 32'b0;
         end else begin
-            pc <= pc + 4;
-            // TODO: add jump/branch logic
+            pc <= pc_write_data;
         end
     end
 

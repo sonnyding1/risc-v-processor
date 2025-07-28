@@ -157,7 +157,10 @@ module controller(
                 end
                 7'b1100011: begin // B type
                     reg_write_enable = 0;
-                    mem_write_enable = 0; // B type instructions do not write to registers or memory
+                    mem_write_enable = 0;
+                    alu_source = 0;
+                    pc_source = 1;
+                    imm_op = 3'b010;
                 end
                 7'b0110111: begin // U type
                     reg_write_enable = 1;
@@ -168,7 +171,7 @@ module controller(
                     mem_write_enable = 0;
                 end
                 default: begin
-                    reg_write_enable = 0;
+                    reg_write_enable = 0; // TODO: invalid operation
                     mem_write_enable = 0;
                 end
             endcase
