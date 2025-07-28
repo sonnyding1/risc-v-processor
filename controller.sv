@@ -52,7 +52,7 @@ module controller(
             alu_source = 0;
             pc_source = 0;
             reg_write_source = 2'b00;
-            bit_half_word_select = 2'b00;
+            bit_half_word_select = 2'b00; // TODO: it seems bit half word select is not necessary?
             is_unsigned = 0;
             imm_op = 3'b000;
             alu_op = 4'b0000;
@@ -110,6 +110,7 @@ module controller(
                     pc_source = 0;
                     reg_write_source = 2'b01;
                     imm_op = 3'b000;
+                    alu_op = 4'b0000;
 
                     case (funct3)
                         3'b000: begin // LB
@@ -141,6 +142,18 @@ module controller(
                 7'b0100011: begin // S type
                     reg_write_enable = 0;
                     mem_write_enable = 1;
+                    alu_source = 1;
+                    pc_source = 0;
+                    imm_op = 3'b001;
+                    alu_op = 4'b0000;
+
+                    case (funct3)
+                        3'b000: bit_half_word_select = 2'b00; // SB
+                        3'b001: bit_half_word_select = 2'b01; // SH
+                        3'b010: bit_half_word_select = 2'b10; // SW
+                        default: bit_half_word_select = 2'b00; // TODO: invalid operation
+                    endcase
+                    is_unsigned = 0;
                 end
                 7'b1100011: begin // B type
                     reg_write_enable = 0;
