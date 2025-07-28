@@ -4,21 +4,32 @@ module rv32i_top_tb();
     logic clk;
     logic rst;
     logic [31:0] instruction;
+    logic [31:0] mem_data;
     logic [7:0] pc;
+    logic [31:0] mem_addr;
+    logic mem_write_enable;
+    logic [31:0] mem_write_data;
     logic [31:0] i_mem [0:255]; // instruction memory
+    logic [31:0] mem [0:255]; // data memory
 
     rv32i_top dut (
         .clk(clk),
         .rst(rst),
         .instruction(instruction),
-        .pc(pc)
+        .mem_data(mem_data),
+        .pc(pc),
+        .mem_addr(mem_addr),
+        .mem_write_enable(mem_write_enable),
+        .mem_write_data(mem_write_data)
     );
 
-    initial begin
-        $readmemh("instructions.hex", i_mem);
-    end
-
     assign instruction = i_mem[pc >> 2];
+    assign mem_data = mem[mem_addr >> 2];
+
+    initial begin
+        $readmemh("i_mem.hex", i_mem);
+        $readmemh("mem.hex", mem);
+    end
 
     initial begin
         clk = 0;
@@ -41,6 +52,12 @@ module rv32i_top_tb();
         // dump register contents
         for (int i = 0; i < 32; i = i + 1) begin
             $dumpvars(0, dut.register_file_inst.registers[i]);
+        end
+    end
+
+    always_ff @(posedge clk) begin
+        if (mem_write_enable) begin
+            mem[mem_addr >> 2] <= mem_write_data;
         end
     end
 endmodule

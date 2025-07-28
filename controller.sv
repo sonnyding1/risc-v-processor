@@ -9,6 +9,7 @@ module controller(
     output logic pc_source,
     output logic [1:0] reg_write_source,
     output logic [1:0] bit_half_word_select,
+    output logic is_unsigned,
     output logic [2:0] imm_op,
     output logic [3:0] alu_op
 );
@@ -52,6 +53,7 @@ module controller(
             pc_source = 0;
             reg_write_source = 2'b00;
             bit_half_word_select = 2'b00;
+            is_unsigned = 0;
             imm_op = 3'b000;
             alu_op = 4'b0000;
         end else begin
@@ -80,7 +82,7 @@ module controller(
                         default: alu_op = 4'b0000; // TODO: invalid operation
                     endcase
                 end
-                7'b0010011: begin // I type
+                7'b0010011: begin // I type register
                     reg_write_enable = 1;
                     mem_write_enable = 0;
                     alu_source = 1;
@@ -100,7 +102,42 @@ module controller(
                         {7'b0100000, 3'b011}: alu_op = 4'b1001; // SLTIU
                         default: alu_op = 4'b0000; // TODO: invalid operation
                     endcase
-                end // TODO: load save I type
+                end
+                7'b0000011: begin // I type load
+                    reg_write_enable = 1;
+                    mem_write_enable = 0;
+                    alu_source = 1;
+                    pc_source = 0;
+                    reg_write_source = 2'b01;
+                    imm_op = 3'b000;
+
+                    case (funct3)
+                        3'b000: begin // LB
+                            bit_half_word_select = 2'b00;
+                            is_unsigned = 0;
+                        end
+                        3'b001: begin // LH
+                            bit_half_word_select = 2'b01;
+                            is_unsigned = 0;
+                        end
+                        3'b010: begin // LW
+                            bit_half_word_select = 2'b10;
+                            is_unsigned = 0;
+                        end
+                        3'b100: begin // LBU
+                            bit_half_word_select = 2'b00;
+                            is_unsigned = 1;
+                        end
+                        3'b101: begin // LHU
+                            bit_half_word_select = 2'b01;
+                            is_unsigned = 1;
+                        end
+                        default: begin
+                            bit_half_word_select = 2'b00; // TODO: invalid operation
+                            is_unsigned = 0;
+                        end
+                    endcase
+                end
                 7'b0100011: begin // S type
                     reg_write_enable = 0;
                     mem_write_enable = 1;

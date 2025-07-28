@@ -1,0 +1,3 @@
+LW T0, 0(ZERO)
+LW T1, 1(ZERO)
+ADD T2, T0, T1
