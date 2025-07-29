@@ -9,8 +9,8 @@ module rv32i_top (
     output logic [31:0] mem_write_data
 );
     logic [31:0] rs1_data, rs2_data, imm, alu_second_input, alu_result, mem_data_processed, reg_write_data, pc_write_data;
-    logic reg_write_enable, alu_source, pc_source, is_unsigned;
-    logic [1:0] reg_write_source, bit_half_word_select;
+    logic reg_write_enable, reg_write_source, pc_source, is_unsigned;
+    logic [1:0] alu_source, bit_half_word_select;
     logic [2:0] imm_op;
     logic [3:0] alu_op;
 

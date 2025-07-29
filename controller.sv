@@ -5,24 +5,24 @@ module controller(
     input logic rst,
     output logic reg_write_enable,
     output logic mem_write_enable,
-    output logic alu_source,
+    output logic [1:0] alu_source,
     output logic pc_source,
-    output logic [1:0] reg_write_source,
+    output logic reg_write_source,
     output logic [1:0] bit_half_word_select,
     output logic is_unsigned,
     output logic [2:0] imm_op,
     output logic [3:0] alu_op
 );
     // alu_source:
-    //   0: from register
-    //   1: from immediate value
+    //   00: from register
+    //   01: from immediate value
+    //   10: from pc
     // pc_source:
     //   0: next instruction
     //   1: branch/jump target
     // reg_write_source:
-    //   00: ALU result
-    //   01: memory read data
-    //   10: PC
+    //   0: ALU result
+    //   1: memory read data
     // bit_half_word_select (only for memory operations):
     //   00: byte
     //   01: half word
@@ -44,14 +44,16 @@ module controller(
     //   0111: SRA
     //   1000: SLT
     //   1001: SLTU
+    //   1010: EQ
+    //   1011: B
 
     always_comb begin
         if (rst) begin
             reg_write_enable = 0;
             mem_write_enable = 0;
-            alu_source = 0;
+            alu_source = 2'b00;
             pc_source = 0;
-            reg_write_source = 2'b00;
+            reg_write_source = 0;
             bit_half_word_select = 2'b00; // TODO: it seems bit half word select is not necessary?
             is_unsigned = 0;
             imm_op = 3'b000;
@@ -64,9 +66,9 @@ module controller(
                 7'b0110011: begin // R type
                     reg_write_enable = 1;
                     mem_write_enable = 0;
-                    alu_source = 0;
+                    alu_source = 2'b00;
                     pc_source = 0;
-                    reg_write_source = 2'b00;
+                    reg_write_source = 0;
                     
                     case ({funct7, funct3})
                         {7'b0000000, 3'b000}: alu_op = 4'b0000; // ADD
@@ -85,9 +87,9 @@ module controller(
                 7'b0010011: begin // I type register
                     reg_write_enable = 1;
                     mem_write_enable = 0;
-                    alu_source = 1;
+                    alu_source = 2'b01;
                     pc_source = 0;
-                    reg_write_source = 2'b00;
+                    reg_write_source = 0;
                     imm_op = 3'b000;
 
                     case ({funct7, funct3})
@@ -106,9 +108,9 @@ module controller(
                 7'b0000011: begin // I type load
                     reg_write_enable = 1;
                     mem_write_enable = 0;
-                    alu_source = 1;
+                    alu_source = 2'b01;
                     pc_source = 0;
-                    reg_write_source = 2'b01;
+                    reg_write_source = 1;
                     imm_op = 3'b000;
                     alu_op = 4'b0000;
 
@@ -142,7 +144,7 @@ module controller(
                 7'b0100011: begin // S type
                     reg_write_enable = 0;
                     mem_write_enable = 1;
-                    alu_source = 1;
+                    alu_source = 2'b01;
                     pc_source = 0;
                     imm_op = 3'b001;
                     alu_op = 4'b0000;
@@ -158,13 +160,22 @@ module controller(
                 7'b1100011: begin // B type
                     reg_write_enable = 0;
                     mem_write_enable = 0;
-                    alu_source = 0;
+                    alu_source = 2'b00;
                     pc_source = 1;
                     imm_op = 3'b010;
                 end
-                7'b0110111: begin // U type
+                7'b0110111, 7'b0010111: begin // U type
                     reg_write_enable = 1;
                     mem_write_enable = 0;
+                    alu_source = 2'b10;
+                    reg_write_source = 0;
+                    imm_op = 3'b011;
+                    
+                    case (opcode)
+                        7'b0110111: alu_op = 4'b1011; // LUI
+                        7'b0010111: alu_op = 4'b0000; // AUIPC
+                        default: alu_op = 4'b0000; // cannot happen
+                    endcase
                 end
                 7'b1101111: begin // J type
                     reg_write_enable = 1;

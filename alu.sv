@@ -15,7 +15,8 @@ module alu (
         SRA  = 4'b0111,
         SLT  = 4'b1000,
         SLTU = 4'b1001,
-        EQ   = 4'b1010
+        EQ   = 4'b1010,
+        B    = 4'b1011
     } alu_op_type;
 
     always_comb begin
@@ -31,6 +32,7 @@ module alu (
             SLT:  result = ($signed(a) < $signed(b)) ? 32'b1 : 32'b0;
             SLTU: result = (a < b) ? 32'b1 : 32'b0;
             EQ:   result = (a == b) ? 32'b1 : 32'b0;
+            B:    result = b;
             default: result = 32'b0;
         endcase
     end

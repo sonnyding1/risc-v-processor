@@ -27,8 +27,8 @@ module rv32i_top_tb();
     assign mem_data = mem[mem_addr >> 2];
 
     initial begin
-        $readmemh("tests/branch/i_mem.hex", i_mem);
-        $readmemh("tests/branch/mem.hex", mem);
+        $readmemh("tests/u_type/i_mem.hex", i_mem);
+        $readmemh("tests/u_type/mem.hex", mem);
     end
 
     initial begin

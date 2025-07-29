@@ -1,0 +1,2 @@
+LUI t0, 9
+AUIPC t1, 23
