@@ -6,8 +6,8 @@ module controller(
     output logic reg_write_enable,
     output logic mem_write_enable,
     output logic [1:0] alu_source,
-    output logic pc_source,
-    output logic reg_write_source,
+    output logic [1:0] pc_source,
+    output logic [1:0] reg_write_source,
     output logic [1:0] bit_half_word_select,
     output logic is_unsigned,
     output logic [2:0] imm_op,
@@ -18,11 +18,13 @@ module controller(
     //   01: from immediate value
     //   10: from pc
     // pc_source:
-    //   0: next instruction
-    //   1: branch/jump target
+    //   00: pc + 4 (next instruction)
+    //   01: pc + (alu_result & imm) (branch/jump)
+    //   10: rs1 + imm (JALR)
     // reg_write_source:
-    //   0: ALU result
-    //   1: memory read data
+    //   00: ALU result
+    //   01: memory read data
+    //   10: pc + 4
     // bit_half_word_select (only for memory operations):
     //   00: byte
     //   01: half word
@@ -44,16 +46,19 @@ module controller(
     //   0111: SRA
     //   1000: SLT
     //   1001: SLTU
-    //   1010: EQ
-    //   1011: B
+    //   1010: SGE
+    //   1011: SGEU
+    //   1100: SEQ
+    //   1101: SNE
+    //   1110: B
 
     always_comb begin
         if (rst) begin
             reg_write_enable = 0;
             mem_write_enable = 0;
             alu_source = 2'b00;
-            pc_source = 0;
-            reg_write_source = 0;
+            pc_source = 2'b00;
+            reg_write_source = 2'b00;
             bit_half_word_select = 2'b00; // TODO: it seems bit half word select is not necessary?
             is_unsigned = 0;
             imm_op = 3'b000;
@@ -67,8 +72,8 @@ module controller(
                     reg_write_enable = 1;
                     mem_write_enable = 0;
                     alu_source = 2'b00;
-                    pc_source = 0;
-                    reg_write_source = 0;
+                    pc_source = 2'b00;
+                    reg_write_source = 2'b00;
                     
                     case ({funct7, funct3})
                         {7'b0000000, 3'b000}: alu_op = 4'b0000; // ADD
@@ -88,8 +93,8 @@ module controller(
                     reg_write_enable = 1;
                     mem_write_enable = 0;
                     alu_source = 2'b01;
-                    pc_source = 0;
-                    reg_write_source = 0;
+                    pc_source = 2'b00;
+                    reg_write_source = 2'b00;
                     imm_op = 3'b000;
 
                     case ({funct7, funct3})
@@ -109,8 +114,8 @@ module controller(
                     reg_write_enable = 1;
                     mem_write_enable = 0;
                     alu_source = 2'b01;
-                    pc_source = 0;
-                    reg_write_source = 1;
+                    pc_source = 2'b00;
+                    reg_write_source = 2'b01;
                     imm_op = 3'b000;
                     alu_op = 4'b0000;
 
@@ -145,7 +150,7 @@ module controller(
                     reg_write_enable = 0;
                     mem_write_enable = 1;
                     alu_source = 2'b01;
-                    pc_source = 0;
+                    pc_source = 2'b00;
                     imm_op = 3'b001;
                     alu_op = 4'b0000;
 
@@ -161,25 +166,49 @@ module controller(
                     reg_write_enable = 0;
                     mem_write_enable = 0;
                     alu_source = 2'b00;
-                    pc_source = 1;
+                    pc_source = 2'b01;
                     imm_op = 3'b010;
+
+                    case (funct3)
+                        3'b000: alu_op = 4'b1100; // BEQ
+                        3'b001: alu_op = 4'b1101; // BNE
+                        3'b100: alu_op = 4'b1000; // BLT
+                        3'b101: alu_op = 4'b1010; // BGE
+                        3'b110: alu_op = 4'b1001; // BLTU
+                        3'b111: alu_op = 4'b1011; // BGEU
+                        default: alu_op = 4'b0000; // TODO: invalid operation
+                    endcase
                 end
                 7'b0110111, 7'b0010111: begin // U type
                     reg_write_enable = 1;
                     mem_write_enable = 0;
                     alu_source = 2'b10;
-                    reg_write_source = 0;
+                    reg_write_source = 2'b00;
                     imm_op = 3'b011;
                     
                     case (opcode)
                         7'b0110111: alu_op = 4'b1011; // LUI
-                        7'b0010111: alu_op = 4'b0000; // AUIPC
+                        7'b0010111: alu_op = 4'b0000; // AUIPC TODO: fix it by moving pc to alu first input
                         default: alu_op = 4'b0000; // cannot happen
                     endcase
                 end
-                7'b1101111: begin // J type
+                7'b1101111: begin // J type JAL
                     reg_write_enable = 1;
                     mem_write_enable = 0;
+                    alu_source = 2'b01;
+                    pc_source = 2'b01;
+                    reg_write_source = 2'b10;
+                    imm_op = 3'b100;
+                    alu_op = 4'b1101; // TODO: I'm using SNE here as a trick, but there should be a better way to handle this
+                end
+                7'b1100111: begin // I type JALR
+                    reg_write_enable = 1;
+                    mem_write_enable = 0;
+                    alu_source = 2'b01;
+                    pc_source = 2'b10;
+                    reg_write_source = 2'b10;
+                    imm_op = 3'b000;
+                    alu_op = 4'b0000;
                 end
                 default: begin
                     reg_write_enable = 0; // TODO: invalid operation

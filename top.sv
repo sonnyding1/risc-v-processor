@@ -9,8 +9,8 @@ module rv32i_top (
     output logic [31:0] mem_write_data
 );
     logic [31:0] rs1_data, rs2_data, imm, alu_second_input, alu_result, mem_data_processed, reg_write_data, pc_write_data;
-    logic reg_write_enable, reg_write_source, pc_source, is_unsigned;
-    logic [1:0] alu_source, bit_half_word_select;
+    logic reg_write_enable, is_unsigned;
+    logic [1:0] alu_source, pc_source, bit_half_word_select, reg_write_source;
     logic [2:0] imm_op;
     logic [3:0] alu_op;
 
@@ -33,7 +33,10 @@ module rv32i_top (
     assign reg_write_data = (reg_write_source == 2'b00) ? alu_result :
                         (reg_write_source == 2'b01) ? mem_data_processed :
                         (reg_write_source == 2'b10) ? pc + 4 : 32'b0; // TODO: jump logic
-    assign pc_write_data = pc_source ? (pc + (alu_result & imm)) : pc + 4;
+    assign pc_write_data = pc_source[1] ? (rs1_data + imm) :
+                        pc_source[0] ? 
+                        alu_result ? pc + imm : pc + 4
+                         : pc + 4; // TODO: syntax here is messy af, consider making into always_comb
 
     always_ff @(posedge clk or posedge rst) begin
         if (rst) begin
